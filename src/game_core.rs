@@ -15,7 +15,7 @@ pub struct SpaceInvadersGame {
     player: Player,
     aliens: Aliens,
     score: u64,
-    last_key: Option<Dir>
+    last_key: Option<KeyCode>
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -155,11 +155,12 @@ impl Alien {
 pub struct Aliens {
     aliens: [[Alien; 24]; 5],
     bottom_row: u32,  // lowest row of aliens
+    shot: Shot
 }
 
 impl Aliens {
     fn new() -> Self {
-        Aliens {aliens: [[Alien::new(Position {row: 0, col: 0}); 24]; 5], bottom_row: 4}
+        Aliens {aliens: [[Alien::new(Position {row: 0, col: 0}); 24]; 5], bottom_row: 4, shot: Shot::new(Position {row: 0, col: 0})}
     }
 }
 
@@ -261,9 +262,9 @@ impl SpaceInvadersGame {
         p == self.player.pos
     }
 
-    pub fn alien_at(&self, p: Position) -> Option<(usize,&Alien)> {
-        for row in self.aliens.aliens.iter() {
-            let outcome = row.iter().enumerate().find(|(col , alien)| alien.pos == p);
+    pub fn alien_at(&mut self, p: Position) -> Option<(usize,&mut Alien)> {
+        for row in self.aliens.aliens.iter_mut() {
+            let outcome = row.iter_mut().enumerate().find(|(col , alien)| alien.pos == p);
             match outcome {
                 Some((a, alien)) => {
                     if alien.alive {
@@ -278,11 +279,43 @@ impl SpaceInvadersGame {
 
     pub fn shot_at(&self, p: Position) -> bool {
         for shot in self.player.shots.iter() {
-            if shot.pos == p {
+            if shot.active && shot.pos == p {
                 return true
             }
         }
+        if self.aliens.shot.active && self.aliens.shot.pos == p {
+            return true
+        }
         return false
+    }
+
+    fn check_collisions(&mut self) {
+        for shot in self.player.shots.iter_mut() {
+            if shot.active {
+                self.check_shot_collision(shot);
+            }
+        }
+        if self.aliens.shot.active {
+            self.check_shot_collision(&mut self.aliens.shot);
+        }
+    }
+
+    fn check_shot_collision(&mut self, shot: &mut Shot) {
+        if self.cell(shot.pos) == Cell::Barrier {
+            self.cells[shot.pos.row][shot.pos.col] = Cell::Empty;
+            shot.active = false;
+        } else if self.player_at(shot.pos) {
+            self.status = Status::Over;
+            shot.active = false;
+        } else {
+            match self.alien_at(shot.pos) {
+                Some((a, alien)) => {
+                    alien.alive = false;
+                    shot.active = false;
+                },
+                _ => {}
+            }
+        }
     }
 
     pub fn key(&mut self, key: DecodedKey) {
@@ -294,7 +327,7 @@ impl SpaceInvadersGame {
                 }
             }
             _ => {
-                let key = key2dir(key);
+                let key = check_valid_key(key);
                 if key.is_some() {
                     self.last_key = key;
                 }
@@ -303,18 +336,15 @@ impl SpaceInvadersGame {
     }
 }
 
-fn key2dir(key: DecodedKey) -> Option<Dir> {
+fn check_valid_key(key: DecodedKey) -> Option<KeyCode> {
     match key {
         DecodedKey::RawKey(k) => match k {
-            KeyCode::ArrowLeft => Some(Dir::W),
-            KeyCode::ArrowRight => Some(Dir::E),
+            KeyCode::ArrowLeft => Some(k),
+            KeyCode::ArrowRight => Some(k),
+            KeyCode::Spacebar => Some(k),
             _ => None
-        }
-        DecodedKey::Unicode(c) => match c {
-            'a' => Some(Dir::W),
-            'd' => Some(Dir::E),
-            _ => None
-        }
+        },
+        _ => None
     }
 }
 
