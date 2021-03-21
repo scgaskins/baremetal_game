@@ -6,9 +6,20 @@ static HEIGHT: usize = 250;
 
 #[derive(Copy,Debug,Clone,Eq,PartialEq)]
 pub struct SpaceInvadersGame {
-    cells: [[Cell; WIDTH]; HEIGHT]
+    cells: [[Cell; WIDTH]; HEIGHT],
+    status: Status,
+    player: Player,
+    aliens: Aliens,
+    score: u64,
+    last_key: Option<Dir>
 }
 
+#[derive(Copy,Clone,Eq,PartialEq,Debug)]
+pub enum Status {
+    Normal,
+    Over,
+    Empowered
+}
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
 #[repr(u8)]
