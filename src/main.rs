@@ -9,6 +9,7 @@ use pluggable_interrupt_os::vga_buffer::clear_screen;
 use baremetal_game::LetterMover;
 use crossbeam::atomic::AtomicCell;
 use pluggable_interrupt_os::println;
+use baremetal_game::game_core::SpaceInvadersGame;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {

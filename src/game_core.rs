@@ -1,9 +1,11 @@
-#![feature(const_generics)]
 #![allow(incomplete_features)]
 #![cfg_attr(not(test), no_std)]
 
+static WIDTH: usize = 80;
+static HEIGHT: usize = 250;
+
 #[derive(Copy,Debug,Clone,Eq,PartialEq)]
-pub struct SpaceInvadersGame<const WIDTH: usize, const HEIGHT: usize> {
+pub struct SpaceInvadersGame {
     cells: [[Cell; WIDTH]; HEIGHT]
 }
 
@@ -52,11 +54,11 @@ impl Dir {
 }
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
-pub struct Position<const WIDTH: usize, const HEIGHT: usize> {
+pub struct Position {
     col: i16, row: i16
 }
 
-impl <const WIDTH: usize, const HEIGHT: usize> Position<WIDTH,HEIGHT> {
+impl Position {
     pub fn is_legal(&self) -> bool {
         0 <= self.col && self.col < WIDTH as i16 && 0 <= self.row && self.row < HEIGHT as i16
     }
@@ -65,7 +67,7 @@ impl <const WIDTH: usize, const HEIGHT: usize> Position<WIDTH,HEIGHT> {
         (self.row as usize, self.col as usize)
     }
 
-    pub fn neighbor(&self, d: Dir) -> Position<WIDTH,HEIGHT> {
+    pub fn neighbor(&self, d: Dir) -> Position {
         match d {
             Dir::N => Position {row: self.row - 1, col: self.col},
             Dir::S => Position {row: self.row + 1, col: self.col},
@@ -76,43 +78,95 @@ impl <const WIDTH: usize, const HEIGHT: usize> Position<WIDTH,HEIGHT> {
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
-pub struct Shot<const WIDTH: usize, const HEIGHT: usize> {
-    pos: Position<WIDTH,HEIGHT>,
+pub struct Shot {
+    pos: Position,
     active: bool
 }
 
-impl <const WIDTH: usize, const HEIGHT: usize> Shot<WIDTH,HEIGHT> {
-    fn new(pos: Position<WIDTH,HEIGHT>) -> Self {
-        Shot {pos, active: false}
-    }
+impl Shot {
+    fn new(pos: Position) -> Self {Shot {pos, active: false}}
 
-    fn fire(&mut self, pos: Position<WIDTH,HEIGHT>) {
+    fn fire(&mut self, pos: Position) {
         self.pos = pos;
         self.active = true;
     }
 
-    fn deactivate(&mut self) {
-        self.active = false;
-    }
+    fn deactivate(&mut self) { self.active = false;}
 
-    fn icon() -> char {
-        '|'
-    }
+    fn icon() -> char { '|' }
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
-pub struct Player<const WIDTH: usize, const HEIGHT: usize> {
-    pos: Position<WIDTH,HEIGHT>,
-    shot: Shot<WIDTH,HEIGHT>
+pub struct Player {
+    pos: Position,
+    shots: [Shot; 3]
 }
 
-impl <const WIDTH: usize, const HEIGHT: usize> Player<WIDTH,HEIGHT> {
-    fn new(pos: Position<WIDTH,HEIGHT>) -> Self {
-        Player {pos, shot: Shot::new(pos)}
+impl Player {
+    fn new(pos: Position) -> Self {
+        shots = [Shot; 3];
+        for i in 0..shots.len() {
+            shots[i] = Shot::new();
+        }
+        Player {pos, shots}
     }
 
     fn fire_shot(&mut self) {
         let shot_pos = Position {row: self.pos.row, col: self.pos.col - 1};
-        self.shot.fire(shot_pos);
+        for shot in self.shots.iter() {
+            if !shot.active {
+                // fires the first inactive shot
+                shot.fire(shot_pos);
+                break
+            }
+        }
+    }
+
+    fn icon() -> char { '^' }
+}
+
+#[derive(Debug,Copy,Clone,Eq,PartialEq)]
+pub struct Alien {
+    pos: Position,
+    alive: bool
+}
+
+impl Alien {
+    fn new(pos: Position) -> Self {
+        Alien {pos, alive: true}
+    }
+
+    fn directly_above_player(&self, player: Player) -> bool {
+        player.pos.col == self.pos.col
     }
 }
+
+pub struct Aliens {
+    aliens: [[Alien; 24]; 5],
+    bottom_row: u32,  // lowest row of aliens
+}
+
+const START: &'static str =
+"#..............................................................................#
+#..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@......#
+#...@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@.....#
+#....@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@....#
+#...@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@.....#
+#..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@......#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+#..............................................................................#
+###..###..###..###..###..###..###..###..###..###..###..###..###..###..###..##.##
+###..###..###..###..###..###..###..###..###..###..###..###..###..###..###..##.##
+###..###..###..###..###..###..###..###..###..###..###..###..###..###..###..##.##
+#..............................................................................#
+#...................................^..........................................#
+#..............................................................................#";
