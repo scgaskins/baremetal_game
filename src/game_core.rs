@@ -17,8 +17,7 @@ pub struct SpaceInvadersGame {
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub enum Status {
     Normal,
-    Over,
-    Empowered
+    Over
 }
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
@@ -157,6 +156,12 @@ pub struct Aliens {
     bottom_row: u32,  // lowest row of aliens
 }
 
+impl Aliens {
+    fn new() -> Self {
+        Aliens {aliens: [[Alien::new(Position {row: 0, col: 0}); 24]; 5], bottom_row: 4}
+    }
+}
+
 const START: &'static str =
 "#..............................................................................#
 #..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@......#
@@ -181,3 +186,17 @@ const START: &'static str =
 #..............................................................................#
 #...................................^..........................................#
 #..............................................................................#";
+
+impl SpaceInvadersGame {
+    pub fn new() -> Self {
+        let mut game = SpaceInvadersGame {
+          cells: [[Cell::Empty; WIDTH]; HEIGHT],
+            status: Status::Normal,
+            player: Player::new(Position {row: 0, col: 0}),
+            aliens: Aliens::new(),
+            score: 0,
+            last_key: None
+        };
+        game
+    }
+}
