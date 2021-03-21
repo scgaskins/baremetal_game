@@ -14,6 +14,7 @@ pub struct SpaceInvadersGame {
     status: Status,
     player: Player,
     aliens: Aliens,
+    shots: [Shot; 4],
     score: u64,
     last_key: Option<KeyCode>
 }
@@ -112,24 +113,21 @@ impl Shot {
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct Player {
     pos: Position,
-    shots: [Shot; 3]
+    active_shots: u8,
+    total_shots: u8
 }
 
 impl Player {
     fn new(pos: Position) -> Self {
-        let shots = [Shot::new(Position {row: 0, col: 0}); 3];
-        Player {pos, shots}
+        Player {pos, active_shots: 0, total_shots: 3}
     }
 
-    fn fire_shot(&mut self) {
-        let shot_pos = Position {row: self.pos.row, col: self.pos.col - 1};
-        for mut shot in self.shots.iter_mut() {
-            if !shot.active {
-                // fires the first inactive shot
-                shot.fire(shot_pos);
-                break
-            }
-        }
+    fn can_fire_shot(&self) -> bool {
+        self.active_shots < self.total_shots
+    }
+
+    fn get_shot_position(&self) -> Position {
+        Position {row: self.pos.row, col: self.pos.col - 1}
     }
 
     pub fn icon() -> char { '^' }
@@ -155,12 +153,17 @@ impl Alien {
 pub struct Aliens {
     aliens: [[Alien; 24]; 5],
     bottom_row: u32,  // lowest row of aliens
-    shot: Shot
+    active_shots: u8,
+    total_shots: u8
 }
 
 impl Aliens {
     fn new() -> Self {
-        Aliens {aliens: [[Alien::new(Position {row: 0, col: 0}); 24]; 5], bottom_row: 4, shot: Shot::new(Position {row: 0, col: 0})}
+        Aliens {aliens: [[Alien::new(Position {row: 0, col: 0}); 24]; 5], bottom_row: 4, active_shots: 0, total_shots: 1}
+    }
+
+    fn can_fire_shot(&self) -> bool {
+        self.active_shots < self.total_shots
     }
 }
 
@@ -196,6 +199,7 @@ impl SpaceInvadersGame {
             status: Status::Normal,
             player: Player::new(Position {row: 0, col: 0}),
             aliens: Aliens::new(),
+            shots: [Shot::new(Position {row: 0, col: 0}); 4],
             score: 0,
             last_key: None
         };
@@ -262,13 +266,13 @@ impl SpaceInvadersGame {
         p == self.player.pos
     }
 
-    pub fn alien_at(&mut self, p: Position) -> Option<(usize,&mut Alien)> {
-        for row in self.aliens.aliens.iter_mut() {
-            let outcome = row.iter_mut().enumerate().find(|(col , alien)| alien.pos == p);
+    pub fn alien_at(&self, p: Position) -> Option<(usize,usize,&Alien)> {
+        for (row_num, row) in self.aliens.aliens.iter().enumerate() {
+            let outcome = row.iter().enumerate().find(|(col , alien)| alien.pos == p);
             match outcome {
-                Some((a, alien)) => {
+                Some((col, alien)) => {
                     if alien.alive {
-                        return Some((a, alien))
+                        return Some((row_num, col, alien))
                     }
                 },
                 _ => ()
@@ -278,44 +282,44 @@ impl SpaceInvadersGame {
     }
 
     pub fn shot_at(&self, p: Position) -> bool {
-        for shot in self.player.shots.iter() {
+        for shot in self.shots.iter() {
             if shot.active && shot.pos == p {
                 return true
             }
-        }
-        if self.aliens.shot.active && self.aliens.shot.pos == p {
-            return true
         }
         return false
     }
 
     fn check_collisions(&mut self) {
-        for shot in self.player.shots.iter_mut() {
-            if shot.active {
-                self.check_shot_collision(shot);
+        for i in 0..self.shots.len() {
+            if self.shots.get(i).unwrap().active {
+                if self.check_shot_collision(i) {
+                    self.shots.get_mut(i).unwrap().deactivate();
+                }
             }
-        }
-        if self.aliens.shot.active {
-            self.check_shot_collision(&mut self.aliens.shot);
         }
     }
 
-    fn check_shot_collision(&mut self, shot: &mut Shot) {
-        if self.cell(shot.pos) == Cell::Barrier {
-            self.cells[shot.pos.row][shot.pos.col] = Cell::Empty;
-            shot.active = false;
-        } else if self.player_at(shot.pos) {
+    fn check_shot_collision(&mut self, shot_index: usize) -> bool {
+        let shot_pos = self.shots.get(shot_index).unwrap().pos;
+        if self.cell(shot_pos) == Cell::Barrier {
+            let (row, col) = shot_pos.row_col();
+            self.cells[row][col] = Cell::Empty;
+            return true
+        } else if self.player_at(shot_pos) {
             self.status = Status::Over;
-            shot.active = false;
+            return true
         } else {
-            match self.alien_at(shot.pos) {
-                Some((a, alien)) => {
+            match self.alien_at(shot_pos) {
+                Some((row, col, alien)) => {
+                    let alien = self.aliens.aliens.get_mut(row).unwrap().get_mut(col).unwrap();
                     alien.alive = false;
-                    shot.active = false;
+                    return true
                 },
                 _ => {}
             }
         }
+        false
     }
 
     pub fn key(&mut self, key: DecodedKey) {
