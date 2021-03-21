@@ -1,10 +1,14 @@
 #![allow(incomplete_features)]
 #![cfg_attr(not(test), no_std)]
 
-static WIDTH: usize = 80;
-static HEIGHT: usize = 250;
 
-#[derive(Copy,Debug,Clone,Eq,PartialEq)]
+use pc_keyboard::{DecodedKey, KeyCode};
+use core::borrow::BorrowMut;
+
+const WIDTH: usize = 80;
+const HEIGHT: usize = 250;
+
+#[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct SpaceInvadersGame {
     cells: [[Cell; WIDTH]; HEIGHT],
     status: Status,
@@ -24,8 +28,7 @@ pub enum Status {
 #[repr(u8)]
 pub enum Cell {
     Empty,
-    Barrier,
-    PowerDot
+    Barrier
 }
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
@@ -103,7 +106,7 @@ impl Shot {
 
     fn deactivate(&mut self) { self.active = false;}
 
-    fn icon() -> char { '|' }
+    pub fn icon() -> char { '|' }
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -114,16 +117,13 @@ pub struct Player {
 
 impl Player {
     fn new(pos: Position) -> Self {
-        shots = [Shot; 3];
-        for i in 0..shots.len() {
-            shots[i] = Shot::new();
-        }
+        let shots = [Shot::new(Position {row: 0, col: 0}); 3];
         Player {pos, shots}
     }
 
     fn fire_shot(&mut self) {
         let shot_pos = Position {row: self.pos.row, col: self.pos.col - 1};
-        for shot in self.shots.iter() {
+        for mut shot in self.shots.iter_mut() {
             if !shot.active {
                 // fires the first inactive shot
                 shot.fire(shot_pos);
@@ -132,7 +132,7 @@ impl Player {
         }
     }
 
-    fn icon() -> char { '^' }
+    pub fn icon() -> char { '^' }
 }
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
@@ -151,6 +151,7 @@ impl Alien {
     }
 }
 
+#[derive(Debug,Copy,Clone,Eq,PartialEq)]
 pub struct Aliens {
     aliens: [[Alien; 24]; 5],
     bottom_row: u32,  // lowest row of aliens
@@ -197,6 +198,145 @@ impl SpaceInvadersGame {
             score: 0,
             last_key: None
         };
+        game.reset();
         game
     }
+
+    pub fn status(&self) -> Status {
+        self.status
+    }
+
+    pub fn score(&self) -> u64 {
+        self.score
+    }
+
+    fn reset(&mut self) {
+        self.set_up_game();
+        self.score = 0;
+    }
+
+    // Brings new aliens while keeping score
+    fn next_screen(&mut self) {
+        self.set_up_game();
+    }
+
+    fn set_up_game(&mut self) {
+        let mut alien_col = 0;
+        let mut alien_row = 0;
+        for (row_num, row_chars) in START.split("\n").enumerate() {
+            for (col_num, icon) in row_chars.chars().enumerate() {
+                self.translate_icon(&mut alien_row, &mut alien_col, row_num, col_num, icon)
+            }
+        }
+        self.status = Status::Normal;
+        self.last_key = None;
+    }
+
+    fn translate_icon(&mut self, alien_row: &mut usize, alien_col: &mut usize, row: usize, col: usize, icon: char) {
+        match icon {
+            '.' => self.cells[row][col] = Cell::Empty,
+            '#' => self.cells[row][col] = Cell::Barrier,
+            '^' => self.player = Player::new(Position {row: row as i16, col: col as i16}),
+            '@' => {
+                self.aliens.aliens[*alien_row][*alien_col] = Alien::new(Position {row: row as i16, col: col as i16});
+                *alien_col += 1;
+                if *alien_col >= self.aliens.aliens[0].len() {
+                    *alien_col = 0;
+                    *alien_row += 1;
+                }
+            }
+            _ => panic!("Invalid char '{}'", icon)
+        }
+    }
+
+    pub fn cell(&self, p: Position) -> Cell {
+        self.cells[p.row as usize][p.col as usize]
+    }
+
+    pub fn cell_pos_iter(&self) -> RowColIter {
+        RowColIter { row: 0, col: 0 }
+    }
+
+    pub fn player_at(&self, p: Position) -> bool {
+        p == self.player.pos
+    }
+
+    pub fn alien_at(&self, p: Position) -> Option<(usize,&Alien)> {
+        for row in self.aliens.aliens.iter() {
+            let outcome = row.iter().enumerate().find(|(col , alien)| alien.pos == p);
+            match outcome {
+                Some((a, alien)) => {
+                    if alien.alive {
+                        return Some((a, alien))
+                    }
+                },
+                _ => ()
+            }
+        }
+        return None
+    }
+
+    pub fn shot_at(&self, p: Position) -> bool {
+        for shot in self.player.shots.iter() {
+            if shot.pos == p {
+                return true
+            }
+        }
+        return false
+    }
+
+    pub fn key(&mut self, key: DecodedKey) {
+        match self.status {
+            Status::Over => {
+                match key {
+                    DecodedKey::RawKey(KeyCode::S) | DecodedKey::Unicode('s') => self.reset(),
+                    _ => {}
+                }
+            }
+            _ => {
+                let key = key2dir(key);
+                if key.is_some() {
+                    self.last_key = key;
+                }
+            }
+        }
+    }
 }
+
+fn key2dir(key: DecodedKey) -> Option<Dir> {
+    match key {
+        DecodedKey::RawKey(k) => match k {
+            KeyCode::ArrowLeft => Some(Dir::W),
+            KeyCode::ArrowRight => Some(Dir::E),
+            _ => None
+        }
+        DecodedKey::Unicode(c) => match c {
+            'a' => Some(Dir::W),
+            'd' => Some(Dir::E),
+            _ => None
+        }
+    }
+}
+
+pub struct RowColIter {
+    row: usize, col: usize
+}
+
+impl Iterator for RowColIter {
+    type Item = Position;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.row < HEIGHT {
+            let result = Some(Position {row: self.row as i16, col: self.col as i16});
+            self.col += 1;
+            if self.col == WIDTH {
+                self.col = 0;
+                self.row += 1;
+            }
+            result
+        } else {
+            None
+        }
+    }
+}
+

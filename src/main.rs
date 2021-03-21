@@ -6,10 +6,11 @@ use spin::Mutex;
 use pc_keyboard::{DecodedKey, KeyCode};
 use pluggable_interrupt_os::HandlerTable;
 use pluggable_interrupt_os::vga_buffer::clear_screen;
-use baremetal_game::LetterMover;
 use crossbeam::atomic::AtomicCell;
 use pluggable_interrupt_os::println;
 use baremetal_game::game_core::SpaceInvadersGame;
+
+pub mod game_core;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -21,21 +22,15 @@ pub extern "C" fn _start() -> ! {
 }
 
 lazy_static! {
-    static ref LETTERS: Mutex<LetterMover> = Mutex::new(LetterMover::new());
-    static ref LAST_KEY: AtomicCell<Option<DecodedKey>> = AtomicCell::new(None);
+    static ref GAME: Mutex<SpaceInvadersGame> = Mutex::new(SpaceInvadersGame::new());
 }
 
 fn tick() {
-    let mut letters = LETTERS.lock();
-    match LAST_KEY.swap(None) {
-        None => {}
-        Some(key) => letters.key(key)
-    }
-    letters.tick();
+    baremetal_game::tick(&mut *GAME.lock())
 }
 
 fn key(key: DecodedKey) {
-    LAST_KEY.store(Some(key));
+    GAME.lock().key(key);
 }
 
 fn startup() {
