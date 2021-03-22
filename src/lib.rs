@@ -4,7 +4,7 @@
 use pluggable_interrupt_os::vga_buffer::{BUFFER_WIDTH, BUFFER_HEIGHT, plot, plot_str, plot_num, clear_row, ColorCode, Color};
 pub mod game_core;
 
-use crate::game_core::{SpaceInvadersGame, Status, Cell, Position, Alien, Player};
+use crate::game_core::{SpaceInvadersGame, Status, Cell, Position, Alien, Player, Shot};
 
 const GAME_HEIGHT: usize = BUFFER_HEIGHT - 2;
 const HEADER_SPACE: usize = BUFFER_HEIGHT - GAME_HEIGHT;
@@ -63,7 +63,7 @@ fn get_icon_color(game: &SpaceInvadersGame, p: Position, cell: &Cell) -> (char, 
             if game.alien_at(p).is_some() {
                 ('@', Color::Green)
             } else if game.shot_at(p) {
-                ('|', Color::Red)
+                (Shot::icon(), Color::Red)
             } else {
                 match cell {
                     Cell::Empty => ('.', Color::White),

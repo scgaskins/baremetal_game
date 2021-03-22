@@ -94,18 +94,24 @@ impl Position {
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct Shot {
     pos: Position,
-    active: bool
+    active: bool,
+    dir: Dir,
+    player_fired: bool // true if fired by player, false if by aliens
 }
 
 impl Shot {
-    fn new(pos: Position) -> Self {Shot {pos, active: false}}
+    fn new(pos: Position) -> Self {Shot {pos, active: false, dir: Dir::N, player_fired: false}}
 
-    fn fire(&mut self, pos: Position) {
+    fn fire(&mut self, pos: Position, direction: Dir, player: bool) {
         self.pos = pos;
         self.active = true;
+        self.dir = direction;
+        self.player_fired = player
     }
 
     fn deactivate(&mut self) { self.active = false;}
+
+    fn fired_by_player(&self) -> bool {self.player_fired}
 
     pub fn icon() -> char { '|' }
 }
@@ -147,6 +153,8 @@ impl Alien {
     fn directly_above_player(&self, player: Player) -> bool {
         player.pos.col == self.pos.col
     }
+
+    pub fn icon() -> char {'@'}
 }
 
 #[derive(Debug,Copy,Clone,Eq,PartialEq)]
@@ -243,7 +251,9 @@ impl SpaceInvadersGame {
             '#' => self.cells[row][col] = Cell::Barrier,
             '^' => self.player = Player::new(Position {row: row as i16, col: col as i16}),
             '@' => {
-                self.aliens.aliens[*alien_row][*alien_col] = Alien::new(Position {row: row as i16, col: col as i16});
+                self.aliens.aliens[*alien_row][*alien_col] = Alien::new(
+                    Position {row: row as i16, col: col as i16}
+                );
                 *alien_col += 1;
                 if *alien_col >= self.aliens.aliens[0].len() {
                     *alien_col = 0;
@@ -295,6 +305,11 @@ impl SpaceInvadersGame {
             if self.shots.get(i).unwrap().active {
                 if self.check_shot_collision(i) {
                     self.shots.get_mut(i).unwrap().deactivate();
+                    if self.shots.get(i).unwrap().fired_by_player() {
+                        self.player.active_shots -= 1;
+                    } else {
+                        self.aliens.active_shots -= 1;
+                    }
                 }
             }
         }
