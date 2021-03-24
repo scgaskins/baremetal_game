@@ -386,6 +386,7 @@ impl SpaceInvadersGame {
                 let pos = self.player.get_shot_position();
                 let shot: &mut Shot = self.shots.get_mut(i).unwrap();
                 shot.fire(pos, Dir::N, true);
+                self.player.active_shots += 1;
             },
             None => {}
         }
