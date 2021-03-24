@@ -17,7 +17,6 @@ pub extern "C" fn _start() -> ! {
     HandlerTable::new()
         .keyboard(key)
         .timer(tick)
-        .startup(startup)
         .start()
 }
 
@@ -26,13 +25,14 @@ lazy_static! {
 }
 
 fn tick() {
-    baremetal_game::tick(&mut *GAME.lock())
+    baremetal_game::tick(&mut GAME.lock())
 }
 
 fn key(key: DecodedKey) {
     GAME.lock().key(key);
 }
 
-fn startup() {
+/*fn startup() {
     clear_screen();
 }
+ */

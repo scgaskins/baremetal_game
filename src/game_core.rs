@@ -16,7 +16,7 @@ pub struct SpaceInvadersGame {
     aliens: Aliens,
     shots: [Shot; 4],
     score: u64,
-    last_key: Option<KeyCode>
+    last_dir: Option<Dir>
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -113,6 +113,8 @@ impl Shot {
 
     fn fired_by_player(&self) -> bool {self.player_fired}
 
+    fn next_pos(&self) -> Position {self.pos.neighbor(self.dir)}
+
     pub fn icon() -> char { '|' }
 }
 
@@ -133,7 +135,7 @@ impl Player {
     }
 
     fn get_shot_position(&self) -> Position {
-        Position {row: self.pos.row, col: self.pos.col - 1}
+        Position {row: self.pos.row - 1, col: self.pos.col}
     }
 
     pub fn icon() -> char { '^' }
@@ -209,10 +211,16 @@ impl SpaceInvadersGame {
             aliens: Aliens::new(),
             shots: [Shot::new(Position {row: 0, col: 0}); 4],
             score: 0,
-            last_key: None
+            last_dir: None
         };
         game.reset();
         game
+    }
+
+    pub fn update(&mut self) {
+        self.move_player();
+        self.move_shots();
+        self.check_collisions();
     }
 
     pub fn status(&self) -> Status {
@@ -242,7 +250,7 @@ impl SpaceInvadersGame {
             }
         }
         self.status = Status::Normal;
-        self.last_key = None;
+        self.last_dir = None;
     }
 
     fn translate_icon(&mut self, alien_row: &mut usize, alien_col: &mut usize, row: usize, col: usize, icon: char) {
@@ -300,6 +308,29 @@ impl SpaceInvadersGame {
         return false
     }
 
+    fn move_player(&mut self) {
+        if let Some(dir) = self.last_dir {
+            let neighbor = self.player.pos.neighbor(dir);
+            if neighbor.is_legal() {
+                let (row, col) = neighbor.row_col();
+                if self.cells[row][col] != Cell::Barrier {
+                    self.player.pos = neighbor;
+                }
+            }
+        }
+    }
+
+    fn move_shots(&mut self) {
+        for shot in self.shots.iter_mut() {
+            if shot.active {
+                let new_pos = shot.next_pos();
+                if new_pos.is_legal() {
+                    shot.pos = new_pos;
+                }
+            }
+        }
+    }
+
     fn check_collisions(&mut self) {
         for i in 0..self.shots.len() {
             if self.shots.get(i).unwrap().active {
@@ -337,6 +368,29 @@ impl SpaceInvadersGame {
         false
     }
 
+    fn find_shot_for_player(&self) -> Option<usize> {
+        if self.player.can_fire_shot() {
+            for i in 0..self.shots.len() {
+                if !self.shots.get(i).unwrap().active {
+                    return Some(i)
+                }
+            }
+        }
+        return None
+    }
+
+    fn player_shoot(&mut self) {
+        let fireable_shot = self.find_shot_for_player();
+        match fireable_shot {
+            Some(i) => {
+                let pos = self.player.get_shot_position();
+                let shot: &mut Shot = self.shots.get_mut(i).unwrap();
+                shot.fire(pos, Dir::N, true);
+            },
+            None => {}
+        }
+    }
+
     pub fn key(&mut self, key: DecodedKey) {
         match self.status {
             Status::Over => {
@@ -345,10 +399,15 @@ impl SpaceInvadersGame {
                     _ => {}
                 }
             }
-            _ => {
-                let key = check_valid_key(key);
-                if key.is_some() {
-                    self.last_key = key;
+            Status::Normal => {
+                match key {
+                    DecodedKey::RawKey(k) => match k {
+                    KeyCode::ArrowLeft => {self.last_dir = Some(Dir::W)},
+                    KeyCode::ArrowRight => {self.last_dir = Some(Dir::E)},
+                    KeyCode::Spacebar => {self.player_shoot()},
+                    _                 => {}
+                },
+                    _ => {}
                 }
             }
         }

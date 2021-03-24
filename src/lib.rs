@@ -10,7 +10,8 @@ const GAME_HEIGHT: usize = BUFFER_HEIGHT - 2;
 const HEADER_SPACE: usize = BUFFER_HEIGHT - GAME_HEIGHT;
 
 pub fn tick(game: &mut SpaceInvadersGame) {
-    draw(game)
+    game.update();
+    draw(game);
 }
 
 fn draw(game: &SpaceInvadersGame) {
