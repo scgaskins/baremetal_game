@@ -5,6 +5,8 @@
 use pc_keyboard::{DecodedKey, KeyCode};
 use pluggable_interrupt_os::vga_buffer::{BUFFER_WIDTH, BUFFER_HEIGHT};
 use core::borrow::BorrowMut;
+use pluggable_interrupt_os::println;
+// use term::Attr::Standout;
 
 const WIDTH: usize = BUFFER_WIDTH;
 const HEIGHT: usize = BUFFER_HEIGHT - 2;
@@ -190,6 +192,8 @@ impl Aliens {
     // }
 }
 
+const LAST_RAW : &'static i32 = &17;
+
 const START: &'static str =
 "#..............................................................................#
 #..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@..@......#
@@ -231,11 +235,13 @@ impl SpaceInvadersGame {
     }
 
     pub fn update(&mut self) {
-        self.player_shoot();
-        self.move_player();
-        self.move_aliens();
-        self.move_shots();
-        self.check_collisions();
+        if self.status == Status::Normal{
+            self.player_shoot();
+            self.move_player();
+            self.move_aliens();
+            self.move_shots();
+            self.check_collisions();
+        }
     }
 
     pub fn status(&self) -> Status {
@@ -311,18 +317,21 @@ impl SpaceInvadersGame {
     }
 
     pub fn move_aliens(&mut self) {
-        let will_hit_wall = true;
-        for (row_num, row) in self.aliens.aliens.iter().enumerate() {
-            for (col_num, alien) in row.iter().enumerate() {
-                if alien.alive {
-                    let nextPos: Position = alien.pos.neighbor(self.aliens.dir);
-                    let (row, col) = nextPos.row_col();
-                    if self.cells[row][col] == Cell::Barrier {
-                        will_hit_wall == true;
-                        // self.player.pos = neighbor;
-                    }
+        let mut will_hit_wall = false;
+        for i in 0..self.aliens.aliens.len(){
+            for j in 0..self.aliens.aliens.get(0).unwrap().len(){
+                let mut alien1 : &mut Alien = &mut self.aliens.aliens[i][j];
+                let nextPos  = alien1.pos.neighbor(self.aliens.dir);
+                let down_next = alien1.pos.neighbor(Dir::S);
+                let(row, col) = nextPos.row_col();
+                if !nextPos.is_legal(){
+                    will_hit_wall = true;
                 }
             }
+        }
+
+        if will_hit_wall {
+            self.aliens.dir = self.aliens.dir.reverse();
         }
 
         for i in 0..self.aliens.aliens.len(){
@@ -331,7 +340,9 @@ impl SpaceInvadersGame {
                 let nextPos  = alien1.pos.neighbor(self.aliens.dir);
                 let down_next = alien1.pos.neighbor(Dir::S);
                 let(row, col) = nextPos.row_col();
-                if self.cells[row][col] == Cell::Barrier {
+                if row as i32 == *LAST_RAW {
+                    self.status = Status::Over;
+                }else{
                     if will_hit_wall{
                         alien1.pos = down_next ;
                     }else{
@@ -341,24 +352,6 @@ impl SpaceInvadersGame {
             }
         }
 
-        // for (row_num, row) in self.aliens.aliens.iter_mut().enumerate() {
-        //     for (col_num, alien) in row.iter_mut().enumerate() {
-        //         if alien.alive {
-        //             let nextPos  = alien.pos.neighbor(self.aliens.dir);
-        //             let(row, col) = nextPos.row_col();
-        //             let down_next = alien.pos.neighbor(Dir::S);
-        //             if self.cells[row][col] == Cell::Barrier {
-        //                 if will_hit_wall{
-        //                     // self.aliens.aliens[row_num][col_num]
-        //                     alien.pos = down_next ;
-        //                 }else{
-        //                     alien.pos = nextPos;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        if will_hit_wall {self.aliens.dir = self.aliens.dir.reverse() }
     }
 
     pub fn shot_at(&self, p: Position) -> bool {
@@ -472,7 +465,9 @@ impl SpaceInvadersGame {
             Status::Normal => {
                 match key {
                     DecodedKey::RawKey(k) => match k {
-                    KeyCode::ArrowLeft => {self.last_dir = Some(Dir::W)},
+                    KeyCode::ArrowLeft => {
+                        self.last_dir = Some(Dir::W);
+                    },
                     KeyCode::ArrowRight => {self.last_dir = Some(Dir::E)},
                     KeyCode::Spacebar => {self.player_shoot()},
                     _                 => {}
