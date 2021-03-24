@@ -3,10 +3,11 @@
 
 
 use pc_keyboard::{DecodedKey, KeyCode};
+use pluggable_interrupt_os::vga_buffer::{BUFFER_WIDTH, BUFFER_HEIGHT};
 use core::borrow::BorrowMut;
 
-const WIDTH: usize = 80;
-const HEIGHT: usize = 250;
+const WIDTH: usize = BUFFER_WIDTH;
+const HEIGHT: usize = BUFFER_HEIGHT - 2;
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct SpaceInvadersGame {
@@ -218,6 +219,7 @@ impl SpaceInvadersGame {
     }
 
     pub fn update(&mut self) {
+        self.player_shoot();
         self.move_player();
         self.move_shots();
         self.check_collisions();
@@ -286,14 +288,10 @@ impl SpaceInvadersGame {
 
     pub fn alien_at(&self, p: Position) -> Option<(usize,usize,&Alien)> {
         for (row_num, row) in self.aliens.aliens.iter().enumerate() {
-            let outcome = row.iter().enumerate().find(|(col , alien)| alien.pos == p);
-            match outcome {
-                Some((col, alien)) => {
-                    if alien.alive {
-                        return Some((row_num, col, alien))
-                    }
-                },
-                _ => ()
+            for (col_num, alien) in row.iter().enumerate() {
+                if alien.alive && alien.pos == p {
+                    return Some((row_num, col_num, alien))
+                }
             }
         }
         return None
@@ -326,6 +324,13 @@ impl SpaceInvadersGame {
                 let new_pos = shot.next_pos();
                 if new_pos.is_legal() {
                     shot.pos = new_pos;
+                } else {
+                    shot.deactivate();
+                    if shot.player_fired {
+                        self.player.active_shots -= 1;
+                    } else {
+                        self.aliens.active_shots -= 1;
+                    }
                 }
             }
         }

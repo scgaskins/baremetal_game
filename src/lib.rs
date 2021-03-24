@@ -62,6 +62,7 @@ fn get_icon_color(game: &SpaceInvadersGame, p: Position, cell: &Cell) -> (char, 
             }, Color::Yellow)
         } else {
             if game.alien_at(p).is_some() {
+
                 ('@', Color::Green)
             } else if game.shot_at(p) {
                 (Shot::icon(), Color::Red)
