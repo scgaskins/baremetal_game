@@ -6,7 +6,6 @@ use pc_keyboard::{DecodedKey, KeyCode};
 use pluggable_interrupt_os::vga_buffer::{BUFFER_WIDTH, BUFFER_HEIGHT};
 use core::borrow::BorrowMut;
 use pluggable_interrupt_os::println;
-// use term::Attr::Standout;
 
 const WIDTH: usize = BUFFER_WIDTH;
 const HEIGHT: usize = BUFFER_HEIGHT - 2;
@@ -211,7 +210,7 @@ impl Aliens {
     // }
 }
 
-const LAST_RAW : &'static i32 = &17;
+const LAST_RAW : &'static i32 = &16;
 
 const START: &'static str =
 "#..............................................................................#
