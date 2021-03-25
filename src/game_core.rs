@@ -474,7 +474,7 @@ impl SpaceInvadersGame {
             }
             Status::Normal => {
                 match key {
-                    DecodedKey::RawKey(KeyCode::F) | DecodedKey::Unicode('f')=> {self.fired_shot = true},
+                    DecodedKey::RawKey(KeyCode::Spacebar) | DecodedKey::Unicode(' ')=> {self.fired_shot = true},
                     DecodedKey::RawKey(k) => match k {
                     KeyCode::ArrowLeft => {
                         self.last_dir = Some(Dir::W);
