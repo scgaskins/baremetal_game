@@ -158,8 +158,13 @@ impl Alien {
         Alien {pos, alive: true}
     }
 
-    fn directly_above_player(&self, player: Player) -> bool {
+    fn directly_above_player(&self, player: &Player) -> bool {
         player.pos.col == self.pos.col
+    }
+
+    fn get_shot_pos(&self) -> Position {
+        let (row, col) = self.pos.row_col();
+        Position {row: (row + 1) as i16, col: col as i16}
     }
 
     pub fn icon() -> char {'@'}
@@ -181,6 +186,17 @@ impl Aliens {
 
     fn can_fire_shot(&self) -> bool {
         self.active_shots < self.total_shots
+    }
+
+    fn find_alien_to_fire(&self, player: &Player) -> Option<&Alien> {
+        for row in self.aliens.iter() {
+            for alien in row.iter() {
+                if alien.directly_above_player(player) {
+                    return Some(alien)
+                }
+            }
+        }
+        None
     }
 
     // fn move_aliens(&self) {
@@ -248,6 +264,7 @@ impl SpaceInvadersGame {
                 self.player_shoot();
             }
             self.move_aliens();
+            self.alien_shoot();
             self.move_shots();
             self.check_collisions();
         }
@@ -423,14 +440,15 @@ impl SpaceInvadersGame {
 
     fn check_shot_collision(&mut self, shot_index: usize) -> bool {
         let shot_pos = self.shots.get(shot_index).unwrap().pos;
+        let fired_by_player = self.shots.get(shot_index).unwrap().fired_by_player();
         if self.cell(shot_pos) == Cell::Barrier {
             let (row, col) = shot_pos.row_col();
             self.cells[row][col] = Cell::Empty;
             return true
-        } else if self.player_at(shot_pos) {
+        } else if self.player_at(shot_pos) && !fired_by_player {
             self.status = Status::Over;
             return true
-        } else {
+        } else if fired_by_player {
             match self.alien_at(shot_pos) {
                 Some((row, col, alien)) => {
                     let alien = self.aliens.aliens.get_mut(row).unwrap().get_mut(col).unwrap();
@@ -444,13 +462,18 @@ impl SpaceInvadersGame {
         false
     }
 
+    fn find_usable_shot(&self) -> Option<usize> {
+        for i in 0..self.shots.len() {
+            if !self.shots.get(i).unwrap().active {
+                return Some(i)
+            }
+        }
+        None
+    }
+
     fn find_shot_for_player(&self) -> Option<usize> {
         if self.player.can_fire_shot() {
-            for i in 0..self.shots.len() {
-                if !self.shots.get(i).unwrap().active {
-                    return Some(i)
-                }
-            }
+            return self.find_usable_shot()
         }
         return None
     }
@@ -464,6 +487,32 @@ impl SpaceInvadersGame {
                 shot.fire(pos, Dir::N, true);
                 self.player.active_shots += 1;
             },
+            None => {}
+        }
+    }
+
+    fn find_shot_for_aliens(&self) -> Option<usize> {
+        if self.aliens.can_fire_shot() {
+            return self.find_usable_shot()
+        }
+        None
+    }
+
+    fn alien_shoot(&mut self) {
+        let fireable_shot = self.find_shot_for_aliens();
+        match fireable_shot {
+            Some(i) => {
+                let alien_to_shoot = self.aliens.find_alien_to_fire(&self.player);
+                match alien_to_shoot {
+                    Some(alien) => {
+                        let pos = alien.get_shot_pos();
+                        let shot: &mut Shot = self.shots.get_mut(i).unwrap();
+                        shot.fire(pos, Dir::S, false);
+                        self.aliens.active_shots += 1;
+                    },
+                    None => {}
+                }
+            }
             None => {}
         }
     }
