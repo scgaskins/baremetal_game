@@ -9,7 +9,7 @@ use pluggable_interrupt_os::println;
 
 const WIDTH: usize = BUFFER_WIDTH;
 const HEIGHT: usize = BUFFER_HEIGHT - 2;
-const UPDATE_FREQUENCY: usize = 3;
+const UPDATE_FREQUENCY: usize = 1;
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct SpaceInvadersGame {
