@@ -279,8 +279,12 @@ impl SpaceInvadersGame {
                 self.translate_icon(&mut alien_row, &mut alien_col, row_num, col_num, icon)
             }
         }
+        for shot in self.shots.iter_mut() {
+            shot.active = false;
+        }
         self.status = Status::Normal;
         self.last_dir = None;
+        self.fired_shot = false;
     }
 
     fn translate_icon(&mut self, alien_row: &mut usize, alien_col: &mut usize, row: usize, col: usize, icon: char) {
