@@ -9,24 +9,29 @@ use crate::game_core::{SpaceInvadersGame, Status, Cell, Position, Alien, Player,
 const GAME_HEIGHT: usize = BUFFER_HEIGHT - 2;
 const HEADER_SPACE: usize = BUFFER_HEIGHT - GAME_HEIGHT;
 
-pub fn tick(game: &mut SpaceInvadersGame) {
-    game.update();
-    draw(game);
+
+pub type MainGame = SpaceInvadersGame;
+
+pub fn tick(game: &mut MainGame) {
+    if game.countdown_complete() {
+        game.update();
+        draw(game);
+    }
 }
 
-fn draw(game: &SpaceInvadersGame) {
+fn draw(game: &MainGame) {
     draw_header(game);
     draw_board(game);
 }
 
-fn draw_header(game: &SpaceInvadersGame) {
+fn draw_header(game: &MainGame) {
     match game.status() {
         Status::Normal => draw_normal_header(game),
         Status::Over => draw_game_over_header(game)
     }
 }
 
-fn draw_normal_header(game: &SpaceInvadersGame) {
+fn draw_normal_header(game: &MainGame) {
     clear_row(1, Color::Black);
     let header_color = ColorCode::new(Color::White, Color::Black);
     let score_text = "Score:";
@@ -40,12 +45,12 @@ fn draw_subheader(subheader: &str) {
     plot_str(subheader, 0, 1, ColorCode::new(Color::LightRed, Color::Black));
 }
 
-fn draw_game_over_header(game: &SpaceInvadersGame) {
+fn draw_game_over_header(game: &MainGame) {
     draw_normal_header(game);
     draw_subheader("Game over. Press S to restart.");
 }
 
-fn draw_board(game: &SpaceInvadersGame) {
+fn draw_board(game: &MainGame) {
     for p in game.cell_pos_iter() {
         let (row, col) = p.row_col();
         let (c, color) = get_icon_color(game, p, &game.cell(p));
@@ -53,7 +58,7 @@ fn draw_board(game: &SpaceInvadersGame) {
     }
 }
 
-fn get_icon_color(game: &SpaceInvadersGame, p: Position, cell: &Cell) -> (char, ColorCode) {
+fn get_icon_color(game: &MainGame, p: Position, cell: &Cell) -> (char, ColorCode) {
     let (icon, foreground) =
         if game.player_at(p) {
             (match game.status() {

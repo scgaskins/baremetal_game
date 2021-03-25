@@ -10,6 +10,7 @@ use pluggable_interrupt_os::println;
 
 const WIDTH: usize = BUFFER_WIDTH;
 const HEIGHT: usize = BUFFER_HEIGHT - 2;
+const UPDATE_FREQUENCY: usize = 3;
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
 pub struct SpaceInvadersGame {
@@ -19,7 +20,9 @@ pub struct SpaceInvadersGame {
     aliens: Aliens,
     shots: [Shot; 4],
     score: u64,
-    last_dir: Option<Dir>
+    last_dir: Option<Dir>,
+    countdown: usize,
+    fired_shot: bool
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -228,7 +231,9 @@ impl SpaceInvadersGame {
             aliens: Aliens::new(),
             shots: [Shot::new(Position {row: 0, col: 0}); 4],
             score: 0,
-            last_dir: None
+            last_dir: None,
+            countdown: 0,
+            fired_shot: false
         };
         game.reset();
         game
@@ -236,8 +241,12 @@ impl SpaceInvadersGame {
 
     pub fn update(&mut self) {
         if self.status == Status::Normal{
-            self.player_shoot();
             self.move_player();
+            self.last_dir = None;
+            if self.fired_shot {
+                self.fired_shot = false;
+                self.player_shoot();
+            }
             self.move_aliens();
             self.move_shots();
             self.check_collisions();
@@ -422,6 +431,7 @@ impl SpaceInvadersGame {
                 Some((row, col, alien)) => {
                     let alien = self.aliens.aliens.get_mut(row).unwrap().get_mut(col).unwrap();
                     alien.alive = false;
+                    self.score += 1;
                     return true
                 },
                 _ => {}
@@ -464,17 +474,27 @@ impl SpaceInvadersGame {
             }
             Status::Normal => {
                 match key {
+                    DecodedKey::RawKey(KeyCode::F) | DecodedKey::Unicode('f')=> {self.fired_shot = true},
                     DecodedKey::RawKey(k) => match k {
                     KeyCode::ArrowLeft => {
                         self.last_dir = Some(Dir::W);
                     },
                     KeyCode::ArrowRight => {self.last_dir = Some(Dir::E)},
-                    KeyCode::Spacebar => {self.player_shoot()},
                     _                 => {}
                 },
                     _ => {}
                 }
             }
+        }
+    }
+
+    pub fn countdown_complete(&mut self) -> bool {
+        if self.countdown == 0 {
+            self.countdown = UPDATE_FREQUENCY;
+            true
+        } else {
+            self.countdown -= 1;
+            false
         }
     }
 }
