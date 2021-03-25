@@ -6,7 +6,6 @@ use pc_keyboard::{DecodedKey, KeyCode};
 use pluggable_interrupt_os::vga_buffer::{BUFFER_WIDTH, BUFFER_HEIGHT};
 use core::borrow::BorrowMut;
 use pluggable_interrupt_os::println;
-// use term::Attr::Standout;
 
 const WIDTH: usize = BUFFER_WIDTH;
 const HEIGHT: usize = BUFFER_HEIGHT - 2;
@@ -182,20 +181,9 @@ impl Aliens {
     fn can_fire_shot(&self) -> bool {
         self.active_shots < self.total_shots
     }
-
-    // fn move_aliens(&self) {
-    //     for (row_num, row) in self.aliens.aliens.iter().enumerate() {
-    //         for (col_num, alien) in row.iter().enumerate() {
-    //             if alien.alive && alien.pos == p {
-    //
-    //                 return Some((row_num, col_num, alien))
-    //             }
-    //         }
-    //     }
-    // }
 }
 
-const LAST_RAW : &'static i32 = &17;
+const LAST_RAW : &'static i32 = &16;
 
 const START: &'static str =
 "#..............................................................................#
