@@ -21,7 +21,9 @@ pub struct SpaceInvadersGame {
     score: u64,
     last_dir: Option<Dir>,
     countdown: usize,
-    fired_shot: bool
+    fired_shot: bool,
+    alien_move_frequency: usize,
+    alien_move_countdown: usize // delays alien movement
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -248,7 +250,9 @@ impl SpaceInvadersGame {
             score: 0,
             last_dir: None,
             countdown: 0,
-            fired_shot: false
+            fired_shot: false,
+            alien_move_countdown: 0,
+            alien_move_frequency: 3
         };
         game.reset();
         game
@@ -262,10 +266,22 @@ impl SpaceInvadersGame {
                 self.fired_shot = false;
                 self.player_shoot();
             }
-            self.move_aliens();
+            if self.alien_countdown_complete() {
+                self.move_aliens();
+            }
             self.alien_shoot();
             self.move_shots();
             self.check_collisions();
+        }
+    }
+
+    fn alien_countdown_complete(&mut self) -> bool {
+        if self.alien_move_countdown <= 0 {
+            self.alien_move_countdown = self.alien_move_frequency;
+            true
+        } else {
+            self.alien_move_countdown -= 1;
+            false
         }
     }
 
